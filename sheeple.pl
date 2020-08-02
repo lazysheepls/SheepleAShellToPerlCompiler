@@ -6,6 +6,7 @@ use strict;
 # global regex
 my $file_name_regex = qr/.sh$/;
 my $empty_line_regex = qr/^\s*$/;
+my $system_line_regex = qr/(?<spaces>\s*)(?<content>.*)/;
 my $inline_comment_regex = qr/(?<content>.*)(?<comment>\s+#.*)$/;
 my $fullline_comment_regex = qr/^(?<comment>\s*#.*)$/;
 
@@ -58,13 +59,7 @@ sub process_lines{
             process_cd($line);
         }
         else{
-            print "system ";
-            print "\"";
-            chomp($line);
-            print $line;
-            print "\"";
-            print ";";
-            print "\n";
+            process_system_line($line);
         }
     }
 }
@@ -80,6 +75,34 @@ sub process_inline_comment{
     $result{"content"} = "$+{content}";
     $result{"comment"} = "$+{comment}";
     return %result;
+}
+
+sub process_system_line{
+    my ($line) = @_;
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$system_line_regex/);
+    
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print $spaces;
+    print "system ";
+    print "\"";
+    print $content;
+    print "\"";
+    print ";";
+    print "$comment";
+    print "\n";
 }
 
 # subset 0
