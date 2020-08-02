@@ -16,6 +16,7 @@ my $assign_regex = qr/(?<spaces>\s*)(?<variable>\S+)=(?<value>\S+)/;
 
 # subset 1 regex
 my $cd_regex = qr/(?<spaces>\s*)cd\s*(?<content>.*)/;
+my $exit_regex = qr/(?<spaces>\s*)exit\s*(?<content>.*)/;
 my $for_regex = qr/(?<spaces>\s*)for\s+(?<iterator>\S+)\s+in\s+(?<content>.*)/;
 my $do_regex = qr/(?<spaces>\s*)do(?!ne)/;
 my $done_regex = qr/(?<spaces>\s*)done/;
@@ -60,6 +61,9 @@ sub process_lines{
         # subset 1
         elsif ($line =~ /$cd_regex/){ #cd /tmp
             process_cd($line);
+        }
+        elsif ($line =~ /$exit_regex/){ # exit 0
+            process_exit($line);
         }
         elsif ($line =~ /$for_regex/){ #>for<...do...done
             process_for($line);
@@ -211,6 +215,33 @@ sub process_cd{
     print "\n";
 }
 
+# func: handle "done" key word in the for statement
+sub process_exit{
+    my ($line) = @_;
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$exit_regex/);
+
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "exit ";
+    print "$content";
+    print ";";
+    print "$comment";
+    print "\n";
+}
+
 # func: handle the first line of the for statement
 sub process_for{
     my ($line) = @_;
@@ -265,6 +296,8 @@ sub process_do{
     my $comment = "";
     return undef unless ($line =~ /$do_regex/);
 
+    $spaces = "$+{spaces}";
+
     # process in-line comment
     if ($line =~ /$inline_comment_regex/){
         my %match_result = ();
@@ -284,6 +317,8 @@ sub process_done{
     my $spaces = "";
     my $comment = "";
     return undef unless ($line =~ /$done_regex/);
+
+    $spaces = "$+{spaces}";
 
     # process in-line comment
     if ($line =~ /$inline_comment_regex/){
