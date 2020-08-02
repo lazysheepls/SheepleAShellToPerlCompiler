@@ -2,9 +2,9 @@
 
 use warnings;
 use strict;
-
+my $empty_line_regex = qr/^\s*$/;
 my $inline_comment_regex = qr/(?<content>.*)(?<comment>\s+#.*)$/;
-my $fullline_comment_regex = qr/^(?<comment>\s+#.*)$/;
+my $fullline_comment_regex = qr/^(?<comment>\s*#.*)$/;
 my $echo_regex = qr/(?<spaces>\s*)echo\s*(?<content>.*)/;
 
 # read shell file
@@ -13,20 +13,28 @@ my @lines = ();
 open my $fh, "<", $file_name;
     @lines = <$fh>;
 close $fh;
-process_lines(@lines);
 
+# process shell script
+print "#!/usr/bin/perl -w\n";
+process_lines(@lines);
+print "\n";
+
+# func: process each line in shell and translate to perl
 sub process_lines{
     my (@lines) = @_;
     my $line = "";
 
-    # print header
-    print "#!/usr/bin/perl -w\n";
-    
     # remove the first line (#!/bin/dash)
     $line = shift @lines;
 
     for $line (@lines){
-        if ($line =~ /$echo_regex/){
+        if ($line =~ /$empty_line_regex/){
+            print $line;
+        }
+        elsif ($line =~ /$fullline_comment_regex/){
+            print $line;
+        }
+        elsif ($line =~ /$echo_regex/){
             process_echo($line);
         }
     }
@@ -58,9 +66,8 @@ sub process_echo{
     print "print \"";
     print "$content";
     print "\\n\"";
-    print "$comment";
     print ";";
-    print "\n";
+    print "$comment";
 }
 
 # func: split line into content and comment
