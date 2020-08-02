@@ -53,14 +53,14 @@ sub process_lines{
             print $line;
         }
         # subset 0
-        elsif ($line =~ /$echo_regex/){ #echo "hello world"
+        elsif ($line =~ /$echo_regex/){ # echo "hello world"
             process_echo($line);
         }
-        elsif ($line =~ /$assign_regex/){ #a=hello
+        elsif ($line =~ /$assign_regex/){ # a=hello
             process_assignment($line);
         }
         # subset 1
-        elsif ($line =~ /$cd_regex/){ #cd /tmp
+        elsif ($line =~ /$cd_regex/){ # cd /tmp
             process_cd($line);
         }
         elsif ($line =~ /$exit_regex/){ # exit 0
@@ -69,13 +69,13 @@ sub process_lines{
         elsif ($line =~ /$read_regex/){ # read line
             process_read($line);
         }
-        elsif ($line =~ /$for_regex/){ #>for<...do...done
+        elsif ($line =~ /$for_regex/){ # >for<...do...done
             process_for($line);
         }
-        elsif ($line =~ /$do_regex/){ #for...>do<...done
+        elsif ($line =~ /$do_regex/){ # for...>do<...done
             process_do($line);
         }
-        elsif ($line =~ /$done_regex/){ #for...do...>done<
+        elsif ($line =~ /$done_regex/){ # for...do...>done<
             process_done($line);
         }
         else{
@@ -340,7 +340,6 @@ sub process_for_iteration_list_full_expansion{
 # e.g for file in [ab].c
 sub process_for_iteration_list_matching{
     my ($content) = @_;
-    my @itertion_list = split /\s+/, $content;
 
     print "(";
     print "glob(";
