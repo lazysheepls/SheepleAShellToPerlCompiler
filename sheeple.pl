@@ -4,16 +4,23 @@ use warnings;
 use strict;
 
 # global regex
+my $file_name_regex = qr/.sh$/;
 my $empty_line_regex = qr/^\s*$/;
 my $inline_comment_regex = qr/(?<content>.*)(?<comment>\s+#.*)$/;
 my $fullline_comment_regex = qr/^(?<comment>\s*#.*)$/;
 
 # subset 0 regex
 my $echo_regex = qr/(?<spaces>\s*)echo\s*(?<content>.*)/;
-my $assign_regex = qr/(?<variable>\S+)=(?<value>\S+)/;
+my $assign_regex = qr/(?<spaces>\s*)(?<variable>\S+)=(?<value>\S+)/;
+
+# subset 1 regex
+my $cd_regex = qr/(?<spaces>\s*)cd\s*(?<content>.*)/;
 
 # read shell file
 my $file_name = $ARGV[0];
+if ($file_name !~ $file_name_regex){
+    exit;
+}
 my @lines = ();
 open my $fh, "<", $file_name;
     @lines = <$fh>;
@@ -32,17 +39,23 @@ sub process_lines{
     $line = shift @lines;
 
     for $line (@lines){
+        # global
         if ($line =~ /$empty_line_regex/){
             print $line;
         }
         elsif ($line =~ /$fullline_comment_regex/){
             print $line;
         }
+        # subset 0
         elsif ($line =~ /$echo_regex/){ #e.g echo "hello world"
             process_echo($line);
         }
         elsif ($line =~ /$assign_regex/){ #e.g a=hello
             process_assignment($line);
+        }
+        # subset 1
+        elsif ($line =~ /$cd_regex/){ #e.g cd /tmp
+            process_cd($line);
         }
         else{
             print "system ";
@@ -56,9 +69,23 @@ sub process_lines{
     }
 }
 
+# global
+# func: split line into content and comment
+# return: return content without comment and comment individually
+sub process_inline_comment{
+    my ($line) = @_;
+    my %result = ();
+    return undef unless ($line =~ /$inline_comment_regex/);
+
+    $result{"content"} = "$+{content}";
+    $result{"comment"} = "$+{comment}";
+    return %result;
+}
+
+# subset 0
 # func: handle echo the build-in program
 # e.g: echo hello word #comment here
-#      echo ($content) ($comment)
+# format:($spaces)echo($content)($comment)
 sub process_echo{
     my ($line) = @_;
     my $spaces = "";
@@ -66,7 +93,6 @@ sub process_echo{
     my $comment = "";
     return undef unless ($line =~ /$echo_regex/);
     
-    # get content after echo (echo >"hello world"<)
     $spaces = "$+{spaces}";
     $content = "$+{content}";
 
@@ -89,14 +115,16 @@ sub process_echo{
 
 # func: handle variable assignment
 # e.g a=Hello #comment here
-#     ($variable)=($value) ($comment)
+# format:($spaces)($variable)=($value)($comment)
 sub process_assignment{
     my ($line) = @_;
+    my $spaces = "";
     my $variable = "";
     my $value = "";
     my $comment = "";
     return undef unless ($line =~ /$assign_regex/);
-
+    
+    $spaces = "$+{spaces}";
     $variable = "$+{variable}";
     $value = "$+{value}";
 
@@ -106,7 +134,7 @@ sub process_assignment{
         %match_result = process_inline_comment($line);
         $comment = $match_result{"comment"};
     }
-
+    print "$spaces";
     print "\$$variable";
     print " = ";
     print "\'";
@@ -117,14 +145,33 @@ sub process_assignment{
     print "\n";
 }
 
-# func: split line into content and comment
-# return: return content without comment and comment individually
-sub process_inline_comment{
+# subset 1
+# func: handle cd the build-in program
+# e.g: cd /tmp #comment here
+# format:($spaces)cd($content) ($comment)
+sub process_cd{
     my ($line) = @_;
-    my %result = ();
-    return undef unless ($line =~ /$inline_comment_regex/);
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$cd_regex/);
+    
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
 
-    $result{"content"} = "$+{content}";
-    $result{"comment"} = "$+{comment}";
-    return %result;
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "chdir \'";
+    print "$content";
+    print "\'";
+    print ";";
+    print "$comment";
+    print "\n";
 }
