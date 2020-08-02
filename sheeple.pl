@@ -17,6 +17,7 @@ my $assign_regex = qr/(?<spaces>\s*)(?<variable>\S+)=(?<value>\S+)/;
 # subset 1 regex
 my $cd_regex = qr/(?<spaces>\s*)cd\s*(?<content>.*)/;
 my $exit_regex = qr/(?<spaces>\s*)exit\s*(?<content>.*)/;
+my $read_regex = qr/(?<spaces>\s*)read\s*(?<content>.*)/;
 my $for_regex = qr/(?<spaces>\s*)for\s+(?<iterator>\S+)\s+in\s+(?<content>.*)/;
 my $do_regex = qr/(?<spaces>\s*)do(?!ne)/;
 my $done_regex = qr/(?<spaces>\s*)done/;
@@ -64,6 +65,9 @@ sub process_lines{
         }
         elsif ($line =~ /$exit_regex/){ # exit 0
             process_exit($line);
+        }
+        elsif ($line =~ /$read_regex/){ # read line
+            process_read($line);
         }
         elsif ($line =~ /$for_regex/){ #>for<...do...done
             process_for($line);
@@ -215,7 +219,7 @@ sub process_cd{
     print "\n";
 }
 
-# func: handle "done" key word in the for statement
+# func: handle exit build-in program
 sub process_exit{
     my ($line) = @_;
     my $spaces = "";
@@ -237,6 +241,35 @@ sub process_exit{
     print "$spaces";
     print "exit ";
     print "$content";
+    print ";";
+    print "$comment";
+    print "\n";
+}
+
+# func: handle read build-in program
+sub process_read{
+    my ($line) = @_;
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$read_regex/);
+
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "\$$content";
+    print " = <STDIN>;\n";
+    print "$spaces";
+    print "chomp \$$content";
     print ";";
     print "$comment";
     print "\n";
@@ -267,8 +300,21 @@ sub process_for{
     print "foreach ";
     print "\$$iterator ";
 
-    # for content 1: split by space
+    # process for iteration list
+    if ($content =~ /[\*\[\]]+/){
+        process_for_iteration_list_matching($content);
+    } else {
+        process_for_iteration_list_full_expansion($content);
+    }
+    #TODO: inline comment not handled here (need to somehow passed after "do")
+}
+
+# func: handle for loop iteration list with content fully expanded
+# e.g for Huston 1202 alarm
+sub process_for_iteration_list_full_expansion{
+    my ($content) = @_;
     my @itertion_list = split /\s+/, $content;
+
     print "(";
     for (my $i=0; $i<=$#itertion_list; $i++){
         # if not a digit, need to rap item in single qoutation marks
@@ -286,6 +332,22 @@ sub process_for{
             print ", ";
         }         
     }
+    print ") ";
+}
+
+# func: handle for loop iteration list with string matching
+# e.g for file in *.c
+# e.g for file in [ab].c
+sub process_for_iteration_list_matching{
+    my ($content) = @_;
+    my @itertion_list = split /\s+/, $content;
+
+    print "(";
+    print "glob(";
+    print "\"";
+    print "$content";
+    print "\"";
+    print ")";
     print ") ";
 }
 
