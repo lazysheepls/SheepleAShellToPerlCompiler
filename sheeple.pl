@@ -16,6 +16,9 @@ my $assign_regex = qr/(?<spaces>\s*)(?<variable>\S+)=(?<value>\S+)/;
 
 # subset 1 regex
 my $cd_regex = qr/(?<spaces>\s*)cd\s*(?<content>.*)/;
+my $for_regex = qr/(?<spaces>\s*)for\s+(?<iterator>\S+)\s+in\s+(?<content>.*)/;
+my $do_regex = qr/(?<spaces>\s*)do(?!ne)/;
+my $done_regex = qr/(?<spaces>\s*)done/;
 
 # read shell file
 my $file_name = $ARGV[0];
@@ -48,15 +51,24 @@ sub process_lines{
             print $line;
         }
         # subset 0
-        elsif ($line =~ /$echo_regex/){ #e.g echo "hello world"
+        elsif ($line =~ /$echo_regex/){ #echo "hello world"
             process_echo($line);
         }
-        elsif ($line =~ /$assign_regex/){ #e.g a=hello
+        elsif ($line =~ /$assign_regex/){ #a=hello
             process_assignment($line);
         }
         # subset 1
-        elsif ($line =~ /$cd_regex/){ #e.g cd /tmp
+        elsif ($line =~ /$cd_regex/){ #cd /tmp
             process_cd($line);
+        }
+        elsif ($line =~ /$for_regex/){ #>for<...do...done
+            process_for($line);
+        }
+        elsif ($line =~ /$do_regex/){ #for...>do<...done
+            process_do($line);
+        }
+        elsif ($line =~ /$done_regex/){ #for...do...>done<
+            process_done($line);
         }
         else{
             process_system_line($line);
@@ -195,6 +207,93 @@ sub process_cd{
     print "$content";
     print "\'";
     print ";";
+    print "$comment";
+    print "\n";
+}
+
+# func: handle the first line of the for statement
+sub process_for{
+    my ($line) = @_;
+    my $spaces = "";
+    my $iterator = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$for_regex/);
+
+    $spaces = "$+{spaces}";
+    $iterator = "$+{iterator}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "foreach ";
+    print "\$$iterator ";
+
+    # for content 1: split by space
+    my @itertion_list = split /\s+/, $content;
+    print "(";
+    for (my $i=0; $i<=$#itertion_list; $i++){
+        # if not a digit, need to rap item in single qoutation marks
+        if ($itertion_list[$i] =~ /\D+/){
+            print "\'";
+        }
+            
+        print $itertion_list[$i];
+
+        if ($itertion_list[$i] =~ /\D+/){
+            print "\'";
+        }
+        # use comma as separator
+        if ($i != $#itertion_list){
+            print ", ";
+        }         
+    }
+    print ") ";
+}
+
+# func: handle "do" key word in the for statement
+sub process_do{
+    my ($line) = @_;
+    my $spaces = "";
+    my $comment = "";
+    return undef unless ($line =~ /$do_regex/);
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "{";
+    print "$comment";
+    print "\n";
+}
+
+# func: handle "done" key word in the for statement
+sub process_done{
+    my ($line) = @_;
+    my $spaces = "";
+    my $comment = "";
+    return undef unless ($line =~ /$done_regex/);
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "}";
     print "$comment";
     print "\n";
 }
