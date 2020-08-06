@@ -2,5 +2,5 @@
 
 foreach $word ('Houston', 1202, 'alarm') {
     print "$word\n";
-    exit; # this is an exit cmd
+    exit;			    # this is an exit cmd
 }

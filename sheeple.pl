@@ -7,7 +7,7 @@ use strict;
 my $file_name_regex = qr/.sh$/;
 my $empty_line_regex = qr/^\s*$/;
 my $system_line_regex = qr/(?<spaces>\s*)(?<content>.*)/;
-my $inline_comment_regex = qr/(?<content>.*)(?<comment>\s+#.*)$/;
+my $inline_comment_regex = qr/(?<content>.*\S+)(?<comment>\s+#.*)$/;
 my $fullline_comment_regex = qr/^(?<comment>\s*#.*)$/;
 
 # subset 0 regex

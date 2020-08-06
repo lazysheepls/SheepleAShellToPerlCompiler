@@ -1,6 +1,6 @@
 #!/bin/sh
 folder="examples"
-sub_folder="0"
+sub_folder=$1
 
 dir="$folder/$sub_folder/"
 for file in "$dir"*.sh
