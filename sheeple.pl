@@ -81,11 +81,30 @@ sub process_lines{
         elsif ($line =~ /$for_regex/){ # >for<...do...done
             process_for($line);
         }
-        elsif ($line =~ /$do_regex/){ # for...>do<...done
+        elsif ($line =~ /$do_regex/){ # for...>do<...done; while...>do<...done
             process_do($line);
         }
-        elsif ($line =~ /$done_regex/){ # for...do...>done<
+        elsif ($line =~ /$done_regex/){ # for...do...>done<; while...do...>done<
             process_done($line);
+        }
+        # subset 2
+        elsif ($line =~ /$if_regex/){ # >if<...then...elif...then...else...fi
+            process_if($line);
+        }
+        elsif ($line =~ /$then_regex/){ # if...>then<...elif...>then<...else...fi
+            process_then($line);
+        }
+        elsif ($line =~ /$elif_regex/){ # if...then...>elif<...then...else...fi
+            process_elif($line);
+        }
+        elsif ($line =~ /$else_regex/){ # if...then...elif...then...>else<...fi
+            process_else($line);
+        }
+        elsif ($line =~ /$fi_regex/){ # if...then...elif...then...else...>fi<
+            process_fi($line);
+        }
+        elsif ($line =~ /$while_regex/){ # >while<...do...done
+            process_while($line);
         }
         else{
             process_system_line($line);
@@ -440,4 +459,34 @@ sub arg_to_ARGV{
         $content =~ s/\$$arg_index/\$ARGV\[$ARGV_index\]/g;
     }
     return $content;
+}
+
+sub process_if{
+    my ($line) = @_;
+    #TODO:
+}
+
+sub process_then{
+    my ($line) = @_;
+    #TODO:
+}
+
+sub process_elif{
+    my ($line) = @_;
+    #TODO:
+}
+
+sub process_else{
+    my ($line) = @_;
+    #TODO:
+}
+
+sub process_fi{
+    my ($line) = @_;
+    #TODO:
+}
+
+sub process_while{
+    my ($line) = @_;
+    #TODO:
 }
