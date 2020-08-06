@@ -11,13 +11,13 @@ my $inline_comment_regex = qr/(?<content>.*\S+)(?<comment>\s+#.*)$/;
 my $fullline_comment_regex = qr/^(?<comment>\s*#.*)$/;
 
 # subset 0 regex
-my $echo_regex = qr/(?<spaces>\s*)echo\s*(?<content>.*)/;
+my $echo_regex = qr/(?<spaces>\s*)echo\s+(?<content>.*)/;
 my $assign_regex = qr/(?<spaces>\s*)(?<variable>\S+)=(?<value>\S+)/;
 
 # subset 1 regex
-my $cd_regex = qr/(?<spaces>\s*)cd\s*(?<content>.*)/;
+my $cd_regex = qr/(?<spaces>\s*)cd\s+(?<content>.*)/;
 my $exit_regex = qr/(?<spaces>\s*)exit\s+(?<exit_number>\d+)?/;
-my $read_regex = qr/(?<spaces>\s*)read\s*(?<content>.*)/;
+my $read_regex = qr/(?<spaces>\s*)read\s+(?<content>.*)/;
 my $for_regex = qr/(?<spaces>\s*)for\s+(?<iterator>\S+)\s+in\s+(?<content>.*)/;
 my $do_regex = qr/(?<spaces>\s*)do(?!ne)/;
 my $done_regex = qr/(?<spaces>\s*)done/;
@@ -301,12 +301,16 @@ sub process_for{
     print "\$$iterator ";
 
     # process for iteration list
-    if ($content =~ /[\*\[\]]+/){
+    if ($content =~ /[\*\[\]\?]+/){
         process_for_iteration_list_matching($content);
     } else {
         process_for_iteration_list_full_expansion($content);
     }
-    #TODO: inline comment not handled here (need to somehow passed after "do")
+    
+    # print comment if there is any
+    if($comment ne ""){
+        print $comment,"\n";
+    }
 }
 
 # func: handle for loop iteration list with content fully expanded
