@@ -150,8 +150,8 @@ sub process_echo{
         $comment = $match_result{"comment"};
     }
 
-    # further process content
-    $content = process_content($content);
+    # process arguments
+    $content = process_arg_in_echo($content);
 
     print "$spaces";
     print "print \"";
@@ -183,12 +183,14 @@ sub process_assignment{
         %match_result = process_inline_comment($line);
         $comment = $match_result{"comment"};
     }
+
+    # process arguments
+    $value = process_arg_in_assignemnt($value);
+    
     print "$spaces";
     print "\$$variable";
     print " = ";
-    print "\'";
     print "$value";
-    print "\'";
     print ";";
     print "$comment";
     print "\n";
@@ -405,15 +407,31 @@ sub process_done{
 }
 
 # subset 2
-# func: process content and replace arguments (e.g $1,$2...) with $ARGV[1]
-sub process_content{
+# func: process arg in echo command
+sub process_arg_in_echo{
     my ($content) = @_;
-    # find arg ($1,$2...) and replace with $ARGV[1]
-    if ($content =~ /$arg_regex/){
+    $content = arg_to_ARGV($content);
+    return $content;
+}
+
+# func: process arg in assignment command
+sub process_arg_in_assignemnt{
+    my ($value) = @_;
+    if ($value =~ /$arg_regex/g){ # with arguements
+        $value = arg_to_ARGV($value);
+    } else { # normal string
+        $value = "\'$value\'";
+    }
+    return $value;
+}
+
+# func: find arg ($1,$2...) and replace with $ARGV[1], $ARGB[2]..
+sub arg_to_ARGV{
+    my ($content) = @_;
+    while ($content =~ /$arg_regex/g){
         my $arg_index = "$+{arg_index}";
         my $ARGV_index = int($arg_index) - 1;
         $content =~ s/\$$arg_index/\$ARGV\[$ARGV_index\]/g;
     }
     return $content;
-    #TODO: split this function when implementing $#, $* and $@ for subset 3
 }
