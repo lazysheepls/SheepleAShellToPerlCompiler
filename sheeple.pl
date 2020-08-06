@@ -22,6 +22,9 @@ my $for_regex = qr/(?<spaces>\s*)for\s+(?<iterator>\S+)\s+in\s+(?<content>.*)/;
 my $do_regex = qr/(?<spaces>\s*)do(?!ne)/;
 my $done_regex = qr/(?<spaces>\s*)done/;
 
+# subset 2 regex
+my $arg_regex = qr/\$(?<arg_index>\d)/;
+
 # read shell file
 my $file_name = $ARGV[0];
 if ($file_name !~ $file_name_regex){
@@ -146,6 +149,9 @@ sub process_echo{
         $content = $match_result{"content"};
         $comment = $match_result{"comment"};
     }
+
+    # further process content
+    $content = process_content($content);
 
     print "$spaces";
     print "print \"";
@@ -396,4 +402,18 @@ sub process_done{
     print "}";
     print "$comment";
     print "\n";
+}
+
+# subset 2
+# func: process content and replace arguments (e.g $1,$2...) with $ARGV[1]
+sub process_content{
+    my ($content) = @_;
+    # find arg ($1,$2...) and replace with $ARGV[1]
+    if ($content =~ /$arg_regex/){
+        my $arg_index = "$+{arg_index}";
+        my $ARGV_index = int($arg_index) - 1;
+        $content =~ s/\$$arg_index/\$ARGV\[$ARGV_index\]/g;
+    }
+    return $content;
+    #TODO: split this function when implementing $#, $* and $@ for subset 3
 }
