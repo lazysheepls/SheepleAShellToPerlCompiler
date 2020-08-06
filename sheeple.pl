@@ -24,6 +24,12 @@ my $done_regex = qr/(?<spaces>\s*)done/;
 
 # subset 2 regex
 my $arg_regex = qr/\$(?<arg_index>\d)/;
+my $if_regex = qr/(?<spaces>\s*)(?<!el)if\s+(?<content>.*)/;
+my $elif_regex = qr/(?<spaces>\s*)elif\s+(?<content>.*)/;
+my $then_regex = qr/(?<spaces>\s*)then/;
+my $else_regex = qr/(?<spaces>\s*)else/;
+my $fi_regex = qr/(?<spaces>\s*)fi/;
+my $while_regex = qr/(?<spaces>\s*)while\s+(?<content>.*)/;
 
 # read shell file
 my $file_name = $ARGV[0];
