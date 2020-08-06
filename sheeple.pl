@@ -16,7 +16,7 @@ my $assign_regex = qr/(?<spaces>\s*)(?<variable>\S+)=(?<value>\S+)/;
 
 # subset 1 regex
 my $cd_regex = qr/(?<spaces>\s*)cd\s*(?<content>.*)/;
-my $exit_regex = qr/(?<spaces>\s*)exit\s*(?<content>.*)/;
+my $exit_regex = qr/(?<spaces>\s*)exit\s+(?<exit_number>\d+)?/;
 my $read_regex = qr/(?<spaces>\s*)read\s*(?<content>.*)/;
 my $for_regex = qr/(?<spaces>\s*)for\s+(?<iterator>\S+)\s+in\s+(?<content>.*)/;
 my $do_regex = qr/(?<spaces>\s*)do(?!ne)/;
@@ -223,24 +223,24 @@ sub process_cd{
 sub process_exit{
     my ($line) = @_;
     my $spaces = "";
-    my $content = "";
+    my $exit_number = "";
     my $comment = "";
     return undef unless ($line =~ /$exit_regex/);
 
     $spaces = "$+{spaces}";
-    $content = "$+{content}";
+    $exit_number = "$+{exit_number}" if defined($+{exit_number});
 
     # process in-line comment
-    if ($content =~ /$inline_comment_regex/){
+    if ($line =~ /$inline_comment_regex/){
         my %match_result = ();
-        %match_result = process_inline_comment($content);
-        $content = $match_result{"content"};
+        %match_result = process_inline_comment($line);
         $comment = $match_result{"comment"};
     }
 
     print "$spaces";
-    print "exit ";
-    print "$content";
+    print "exit";
+    print " " if $exit_number ne "";
+    print "$exit_number";
     print ";";
     print "$comment";
     print "\n";
