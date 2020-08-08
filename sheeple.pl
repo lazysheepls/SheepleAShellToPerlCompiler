@@ -30,6 +30,8 @@ my $then_regex = qr/(?<spaces>\s*)then/;
 my $else_regex = qr/(?<spaces>\s*)else/;
 my $fi_regex = qr/(?<spaces>\s*)fi/;
 my $while_regex = qr/(?<spaces>\s*)while\s+(?<content>.*)/;
+my $compare_regex = qr/(?<left>\S+)\s+(?<middle>\S+)\s+(?<right>\S+)/;
+my $file_arguement_regex = qr/(?<file_argument>-\S)\s+(?<file_name>\S+)/;
 
 # read shell file
 my $file_name = $ARGV[0];
@@ -107,7 +109,7 @@ sub process_lines{
             process_while($line);
         }
         else{
-            process_system_line($line);
+            process_system($line);
         }
     }
 }
@@ -125,7 +127,7 @@ sub process_inline_comment{
     return %result;
 }
 
-sub process_system_line{
+sub process_system{
     my ($line) = @_;
     my $spaces = "";
     my $content = "";
@@ -210,7 +212,7 @@ sub process_assignment{
     }
 
     # process arguments
-    $value = process_arg_in_assignemnt($value);
+    $value = process_item($value);
     
     print "$spaces";
     print "\$$variable";
@@ -439,17 +441,6 @@ sub process_arg_in_echo{
     return $content;
 }
 
-# func: process arg in assignment command
-sub process_arg_in_assignemnt{
-    my ($value) = @_;
-    if ($value =~ /$arg_regex/g){ # with arguements
-        $value = arg_to_ARGV($value);
-    } else { # normal string
-        $value = "\'$value\'";
-    }
-    return $value;
-}
-
 # func: find arg ($1,$2...) and replace with $ARGV[1], $ARGB[2]..
 sub arg_to_ARGV{
     my ($content) = @_;
@@ -461,7 +452,205 @@ sub arg_to_ARGV{
     return $content;
 }
 
+# func: process if statement
+# e.g if test andrew = great
+#     if [ -d /dev/null ]
 sub process_if{
+    my ($line) = @_;
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$if_regex/);
+
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "if (";
+
+    # process test or [...]
+    if ($content =~ /\[.*\]/ || $content =~ /test/){
+        process_test($content);
+    } else {
+        process_system($content);
+    }
+    
+    print ")";
+
+    # print comment if there is any
+    if($comment ne ""){
+        print $comment,"\n";
+    }
+}
+
+sub process_test{
+    my ($line) = @_;
+    my $content = "";
+    my $test_pattern_1 = qr/test\s+(?<content>.*)/;
+    my $test_pattern_2 = qr/\[\s+(?<content>.*)\s+\]/;
+    return undef unless ($line =~ /$test_pattern_1/ || $line =~ /$test_pattern_2/);
+    
+    if ($line =~ /$test_pattern_1/){
+        $content = "$+{content}";
+    }
+    elsif ($line =~ /$test_pattern_2/){
+        $content = "$+{content}";
+    }
+
+    # 3 type of content
+    # type 1 compare (string or numeric): str1 = str2, int1 eq int2, ...
+    # type 2 file arguments: -d, -r, ...
+    # type 3 logic operations: -a(and), -o(or) -> split content into multiple groups
+    #                          !(not) -> could be infornt of each group of compare or file arguments
+
+    # split content into groups by logic operations (-a, -o)
+    my @groups = ();
+    @groups = split /-a|-o/, $content;
+    
+    # find logic operators
+    my @logic_operators = ();
+    while($content =~ /(-a|-o)/g){
+        push @logic_operators, $1;
+    }
+    
+    while (@groups){
+        my $group = shift @groups;
+        
+        # find negation in front (! translate as not)
+        if ($group =~ /^\s*!/){
+            print "not ";
+            $group =~ s/^\s*!//;
+        }
+        
+        # check compare type (compare or file arguement)
+        if ($group =~ /$compare_regex/){
+            process_compare($group);
+        }
+        elsif ($group =~ /$file_arguement_regex/){
+            process_file_argument($group);
+        }
+
+        # print logic operator
+        if (@logic_operators){
+            my $logic_operator = shift @logic_operators;
+            if ($logic_operator =~ /-a/){
+                print " && ";
+            }
+            elsif ($logic_operator =~ /-o/){
+                print " || ";
+            }
+        }
+    }
+}
+
+# func: process compare within a test statement (numeric or string)
+# e.g. Andrew = Mark
+#      $1 -gt 5
+sub process_compare{
+    my ($line) = @_;
+    my $left = "";
+    my $right = "";
+    my $middle = "";
+    return undef unless ($line =~ /$compare_regex/);
+
+    $left = "$+{left}";
+    $right = "$+{right}";
+    $middle = "$+{middle}";
+
+    print process_item($left);
+    print " ";
+    process_middle_comparator($middle);
+    print process_item($right);
+}
+
+# func: process the compare item on either the left or right of the comparator
+# use cases: right side of assignment, if test ..., elsif test ..., while ..., for ... #TODO:
+sub process_item{
+    my ($value) = @_;
+    # $1(arguement) -> $ARGV[0]
+    if ($value =~ /$arg_regex/g){
+        $value = arg_to_ARGV($value);
+    } 
+    # $#(number of arguments) -> @ARGV
+    # $@(array form of all arguements) -> @ARGV
+    elsif ($value =~ /\$\#/ || $value =~ /\$\@/){
+        $value = "\@ARGV";
+    }
+    # $*(string expansion of all arguements) -> 'arg1 arg2 arg3'
+    elsif ($value =~ /\$\*/){
+        $value = join(" ",@ARGV);
+        $value = join("","\'",$value,"\'");
+    }
+    # $k(variable) -> $k
+    elsif ($value =~ /(\$\w+)/){
+        $value = $1;
+    }
+    # number -> number
+    elsif ($value =~ /(\d+)/){
+        $value = $1;
+    }
+    # string
+    elsif($value =~ /\s*(.*)/){
+        $value = join("","\'",$1,"\'");
+    }
+    return $value;
+}
+
+# func: process the comparator (numeric or string)
+sub process_middle_comparator{
+    my ($comparator) = @_;
+    # numeric comparator
+    if ($comparator =~ /-eq/){
+        print "== ";
+    }
+    elsif ($comparator =~ /-ne/){
+        print "!= ";
+    }
+    elsif ($comparator =~ /-gt/){
+        print "> ";
+    }
+    elsif ($comparator =~ /-ge/){
+        print ">= ";
+    }
+    elsif ($comparator =~ /-lt/){
+        print "< ";
+    }
+    elsif ($comparator =~ /-le/){
+        print "<= ";
+    }
+    # string comparator
+    elsif ($comparator =~ /(?<!!)=/){
+        print "eq ";
+    }
+    elsif ($comparator =~ /!=/){
+        print "ne ";
+    }
+    elsif ($comparator =~ />(?!=)/){
+        print "gt ";
+    }
+    elsif ($comparator =~ />=/){
+        print "ge ";
+    }
+    elsif ($comparator =~ /<(?!=)/){
+        print "lt ";
+    }
+    elsif ($comparator =~ /<=/){
+        print "le ";
+    }
+}
+
+# func: process file argument within a test statement
+# e.g. -d file_name
+#      -r file_directory
+sub process_file_argument{
     my ($line) = @_;
     #TODO:
 }
@@ -490,3 +679,4 @@ sub process_while{
     my ($line) = @_;
     #TODO:
 }
+
