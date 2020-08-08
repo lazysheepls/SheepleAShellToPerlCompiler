@@ -357,13 +357,13 @@ sub process_for_iteration_list_full_expansion{
     print "(";
     for (my $i=0; $i<=$#itertion_list; $i++){
         # if not a digit, need to rap item in single qoutation marks
-        if ($itertion_list[$i] =~ /\D+/){
+        if ($itertion_list[$i] !~ /[+-]*\d+/){
             print "\'";
         }
             
         print $itertion_list[$i];
 
-        if ($itertion_list[$i] =~ /\D+/){
+        if ($itertion_list[$i] !~ /[+-]*\d+/){
             print "\'";
         }
         # use comma as separator
@@ -594,7 +594,7 @@ sub process_item{
         $value = $1;
     }
     # number -> number
-    elsif ($value =~ /(\d+)/){
+    elsif ($value =~ /([+-]*\d+)/){
         $value = $1;
     }
     # string
@@ -651,8 +651,19 @@ sub process_middle_comparator{
 # e.g. -d file_name
 #      -r file_directory
 sub process_file_argument{
+    # my $file_arguement_regex = qr/(?<file_argument>-\S)\s+(?<file_name>\S+)/;
     my ($line) = @_;
-    #TODO:
+    my $file_argument = "";
+    my $file_name = "";
+    return undef unless ($line =~ /$file_arguement_regex/);
+
+    $file_argument = "$+{file_argument}";
+    $file_name = "$+{file_name}";
+    $file_name = process_item($file_name);
+
+    print $file_argument;
+    print " ";
+    print $file_name;
 }
 
 sub process_then{

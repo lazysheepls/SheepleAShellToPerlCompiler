@@ -1,14 +1,35 @@
 #!/bin/dash
+
 if test Andrew = great
-if test $k -eq 1
+
+if test $1 = great
+
+if test Andrew = $1
+
 if [ -d /dev/null ]
-if [ ! $1 -eq 0 ]
-if [ ! $1 -eq 0 -a ! Andrew = great ]
-if test $number -gt 100000000 -o  $number -lt -100000000
+
+if [ -d /dev ]
+
+if [ -d $1 ]
+
+if test -d /dev/null
+
+if test -d /dev
+
+if test -r /dev/null
+
+if test $k -eq 1
+
+if test -r $file
+
+if test -r $1
+
+if test -r nonexistantfile
+
 if test $# -gt 0
+
 if test $# -lt $1
-then
-    echo correct
-else
-    echo error
-fi
+
+if test $number -gt 100000000 -o  $number -lt -100000000
+
+if [ ! $1 -eq 0 ]
