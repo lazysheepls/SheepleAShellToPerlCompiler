@@ -483,7 +483,7 @@ sub process_if{
         process_system($content);
     }
     
-    print ")";
+    print ") ";
 
     # print comment if there is any
     if($comment ne ""){
@@ -657,22 +657,101 @@ sub process_file_argument{
 
 sub process_then{
     my ($line) = @_;
-    #TODO:
+    my $spaces = "";
+    my $comment = "";
+    return undef unless ($line =~ /$then_regex/);
+
+    $spaces = "$+{spaces}";
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "{";
+    print "$comment";
+    print "\n";
 }
 
 sub process_elif{
     my ($line) = @_;
-    #TODO:
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$elif_regex/);
+
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "} elsif (";
+
+    # process test or [...]
+    if ($content =~ /\[.*\]/ || $content =~ /test/){
+        process_test($content);
+    } else {
+        process_system($content);
+    }
+    
+    print ") ";
+
+    # print comment if there is any
+    if($comment ne ""){
+        print $comment,"\n";
+    }
 }
 
 sub process_else{
     my ($line) = @_;
-    #TODO:
+    my $spaces = "";
+    my $comment = "";
+    return undef unless ($line =~ /$else_regex/);
+
+    $spaces = "$+{spaces}";
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "} else {";
+    print "$comment";
+    print "\n";
 }
 
 sub process_fi{
     my ($line) = @_;
-    #TODO:
+    my $spaces = "";
+    my $comment = "";
+    return undef unless ($line =~ /$fi_regex/);
+
+    $spaces = "$+{spaces}";
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "}";
+    print "$comment";
+    print "\n";
 }
 
 sub process_while{
