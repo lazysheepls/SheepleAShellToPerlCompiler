@@ -38,9 +38,10 @@ my $expr_regex_double_bracket = qr/\$\(\((?<content>[^\)]*)\)\)/;
 
 # subset 4 regex
 my $sub_func_regex = qr/(?<spaces>\s*)(?<func_name>\S+)\(\)\s+(?<open_bracket>{)?/;
-my $sub_open_bracket = qr/(?<spaces>\s*){(?!\S+)/;
-my $sub_close_bracket = qr/(?<spaces>\s*)}(?!\S+)/;
-my $local_variables = qr/(?<spaces>\s*)local\s+(?<content>.*)/;
+my $sub_open_bracket_regex = qr/(?<spaces>\s*){(?!\S+)/;
+my $sub_close_bracket_regex = qr/(?<spaces>\s*)}(?!\S+)/;
+my $local_variable_regex = qr/(?<spaces>\s*)local\s+(?<content>.*)/;
+my $return_regex = qr/(?<spaces>\s*)return\s+(?<content>.*)/;
 
 # read shell file
 my $file_name = $ARGV[0];
@@ -95,7 +96,7 @@ sub process_lines{
         elsif ($line =~ /$done_regex/){ # for...do...>done<; while...do...>done<
             process_done($line);
         }
-        # subset 2
+        # subset 2 and 3
         elsif ($line =~ /$if_regex/){ # >if<...then...elif...then...else...fi
             process_if($line);
         }
@@ -116,6 +117,22 @@ sub process_lines{
         }
         elsif ($line =~ /$assign_regex/){ # a=hello (NOTE: order matters, assign pattern need to fall behind if, elif, while and for)
             process_assignment($line);
+        }
+        #subset 4
+        elsif ($line =~ /$sub_func_regex/){ # sub_func() {
+            process_sub_func($line);
+        }
+        elsif ($line =~ /$sub_open_bracket_regex/){ # { (in a newline)
+            process_sub_open_bracket($line);
+        }
+        elsif ($line =~ /$sub_close_bracket_regex/){ # } (in a newline)
+            process_sub_close_bracket($line);
+        }
+        elsif ($line =~ /$local_variable_regex/){ # { (in a newline)
+            process_local_variable($line);
+        }
+        elsif ($line =~ /$return_regex/){ # return 0
+            process_return($line);
         }
         else{
             process_system($line);
@@ -994,4 +1011,145 @@ sub process_while{
         print $comment,"\n";
     }
 }
+
+# func: process return statement
+sub process_return{
+    my ($line) = @_;
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$return_regex/);
+
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "return ";
+    print "$content";
+    print ";";
+    print "$comment";
+    print "\n";
+
+}
+
+# func: process sub function entry
+sub process_sub_func{
+    my ($line) = @_;
+    my $spaces = "";
+    my $func_name = "";
+    my $open_bracket = "";
+    my $comment = "";
+    return undef unless ($line =~ /$sub_func_regex/);
+
+    $spaces = "$+{spaces}";
+    $func_name = "$+{func_name}";
+    if (defined($3)){
+        $open_bracket = " $+{open_bracket}";
+    }
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "sub $func_name";
+    print "$open_bracket";
+    print $comment;
+    print "\n";
+}
+
+# func: process {
+sub process_sub_open_bracket{
+    my ($line) = @_;
+    my $spaces = "";
+    my $comment = "";
+    return undef unless ($line =~ /$sub_open_bracket_regex/);
+
+    $spaces = "$+{spaces}";
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "{";
+    print $comment;
+    print "\n";
+}
+
+# func: process }
+sub process_sub_close_bracket{
+    my ($line) = @_;
+    my $spaces = "";
+    my $comment = "";
+    return undef unless ($line =~ /$sub_close_bracket_regex/);
+
+    $spaces = "$+{spaces}";
+
+    # process in-line comment
+    if ($line =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($line);
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "}";
+    print $comment;
+    print "\n";
+}
+
+# func: process local variable declariation
+sub process_local_variable{
+    my ($line) = @_;
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    my @variables = ();
+    my @processed_variables = ();
+    return undef unless ($line =~ /$local_variable_regex/);
+
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    # get variables
+    @variables = split /\s+/, $content;
+    @variables = grep /\S/, @variables; # remove empty strings;
+
+    # process variables
+    while(@variables){
+        my $variable = shift @variables;
+        push @processed_variables, "\$$variable";
+    }
+
+    print "$spaces";
+    print "my (";
+    print join(", ",@processed_variables);
+    print ");";
+    print $comment;
+    print "\n";
+}
+
 
