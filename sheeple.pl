@@ -68,9 +68,6 @@ sub process_lines{
         elsif ($line =~ /$echo_regex/){ # echo "hello world"
             process_echo($line);
         }
-        elsif ($line =~ /$assign_regex/){ # a=hello
-            process_assignment($line);
-        }
         # subset 1
         elsif ($line =~ /$cd_regex/){ # cd /tmp
             process_cd($line);
@@ -108,6 +105,9 @@ sub process_lines{
         }
         elsif ($line =~ /$while_regex/){ # >while<...do...done
             process_while($line);
+        }
+        elsif ($line =~ /$assign_regex/){ # a=hello (NOTE: order matters, assign pattern need to fall behind if, elif, while and for)
+            process_assignment($line);
         }
         else{
             process_system($line);
