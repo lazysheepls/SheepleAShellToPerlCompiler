@@ -146,10 +146,25 @@ sub process_system{
         $comment = $match_result{"comment"};
     }
 
+    # process each item in system command
+    my @items = (); #TODO:
+    my @processed_items = ();
+    @items = split /\s+/, $content;
+    @items = grep /\S/, @items; # remove empty strings;
+    
+    while(@items){
+        my $item = shift @items;
+        if ($item =~ /$arg_regex/ || $item =~ /\$\#/ || $item =~ /\$\@/ || $item =~ /\$\*/){
+            $item = process_item($item);
+        }
+        push @processed_items, $item;
+    }
+
     print $spaces;
     print "system ";
     print "\"";
-    print $content;
+    print join(" ",@processed_items);
+    # print $content;
     print "\"";
     print ";";
     print "$comment";
@@ -181,8 +196,9 @@ sub process_echo{
     # process arguments
     $content = process_arg_in_echo($content);
 
-    # Remove single qoute
-    $content =~ s/\'//g;
+    # Remove single / double qoute at beginning or end
+    $content =~ s/^\s*[\'\"]//g;
+    $content =~ s/[\'\"]\s*$//g;
 
     # Translate double qoute
     $content =~ s/\"/\\\"/g;
@@ -613,19 +629,24 @@ sub process_item{
     # string
     elsif($value =~ /\s*(.*)/){
         $value = $1;
-        # single qoute -> double qoute
-        if ($value =~ /\'/){
-            $value =~ s/\'/\"/g;
-        }
-        # double qoute -> \double qoute
-        elsif ($value =~ /\"/){
-            $value =~ s/\"/\\\"/g;
-            $value = join("","\"",$value,"\"");
-        }
-        # no qoute -> single qoute
-        else {
+        # TODO:
+        # # single qoute -> double qoute
+        # if ($value =~ /\'/){
+        #     $value =~ s/\'/\"/g;
+        # }
+        # # double qoute -> \double qoute
+        # elsif ($value =~ /\"/){
+        #     # if double qoute is at front and end, keep it
+        #     $value =~ s/^\s*\"//g;
+        #     $value =~ s/\"\s*$//g;
+        #     # translate double qoute in middele
+        #     $value =~ s/\"/\\\"/g;
+        #     $value = join("","\"",$value,"\"");
+        # }
+        # # no qoute -> single qoute
+        # else {
             $value = join("","\'",$value,"\'");
-        }
+        # }
     }
     return $value;
 }
