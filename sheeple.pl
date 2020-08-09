@@ -12,22 +12,23 @@ my $fullline_comment_regex = qr/^(?<comment>\s*#.*)$/;
 
 # subset 0 regex
 my $echo_regex = qr/(?<spaces>\s*)echo\s+(?<content>.*)/;
+my $echo_option_n_regex = qr/(?<spaces>\s*)echo\s+-n\s+(?<content>.*)/;
 my $assign_regex = qr/(?<spaces>\s*)(?<variable>[^=]+)=(?<value>.+)/;
 # subset 1 regex
 my $cd_regex = qr/(?<spaces>\s*)cd\s+(?<content>.*)/;
 my $exit_regex = qr/(?<spaces>\s*)exit\s+(?<exit_number>\d+)?/;
 my $read_regex = qr/(?<spaces>\s*)read\s+(?<content>.*)/;
 my $for_regex = qr/(?<spaces>\s*)for\s+(?<iterator>\S+)\s+in\s+(?<content>.*)/;
-my $do_regex = qr/(?<spaces>\s*)do(?!ne)/;
-my $done_regex = qr/(?<spaces>\s*)done/;
+my $do_regex = qr/(?<spaces>\s*)do(?!ne)(?!\S+)/;
+my $done_regex = qr/(?<spaces>\s*)done(?!\S+)/;
 
 # subset 2 regex
 my $arg_regex = qr/\$(?<arg_index>\d)/;
 my $if_regex = qr/(?<spaces>\s*)(?<!el)if\s+(?<content>.*)/;
 my $elif_regex = qr/(?<spaces>\s*)elif\s+(?<content>.*)/;
-my $then_regex = qr/(?<spaces>\s*)then/;
-my $else_regex = qr/(?<spaces>\s*)else/;
-my $fi_regex = qr/(?<spaces>\s*)fi/;
+my $then_regex = qr/(?<spaces>\s*)then(?!\S+)/;
+my $else_regex = qr/(?<spaces>\s*)else(?!\S+)/;
+my $fi_regex = qr/(?<spaces>\s*)fi(?!\S+)/;
 my $while_regex = qr/(?<spaces>\s*)while\s+(?<content>.*)/;
 my $compare_regex = qr/(?<left>\S+)\s+(?<middle>\S+)\s+(?<right>\S+)/;
 my $file_arguement_regex = qr/(?<file_argument>-\S)\s+(?<file_name>\S+)/;
@@ -180,10 +181,18 @@ sub process_echo{
     my $spaces = "";
     my $content = "";
     my $comment = "";
-    return undef unless ($line =~ /$echo_regex/);
-    
-    $spaces = "$+{spaces}";
-    $content = "$+{content}";
+    my $is_trailing_edge_newline_needed = 1;
+    return undef unless ($line =~ /$echo_regex/ || $line =~ /$echo_option_n_regex/);
+
+    if ($line =~ /$echo_option_n_regex/){
+        $is_trailing_edge_newline_needed = 0;
+        $spaces = "$+{spaces}";
+        $content = "$+{content}";
+    }
+    elsif ($line =~ /$echo_regex/){
+        $spaces = "$+{spaces}";
+        $content = "$+{content}";
+    }
 
     # process in-line comment
     if ($content =~ /$inline_comment_regex/){
@@ -206,7 +215,10 @@ sub process_echo{
     print "$spaces";
     print "print \"";
     print "$content";
-    print "\\n\"";
+    if ($is_trailing_edge_newline_needed){
+        print "\\n";
+    }
+    print "\"";
     print ";";
     print "$comment";
     print "\n";
