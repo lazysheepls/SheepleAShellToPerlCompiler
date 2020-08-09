@@ -181,6 +181,12 @@ sub process_echo{
     # process arguments
     $content = process_arg_in_echo($content);
 
+    # Remove single qoute
+    $content =~ s/\'//g;
+
+    # Translate double qoute
+    $content =~ s/\"/\\\"/g;
+
     print "$spaces";
     print "print \"";
     print "$content";
@@ -606,7 +612,20 @@ sub process_item{
     }
     # string
     elsif($value =~ /\s*(.*)/){
-        $value = join("","\'",$1,"\'");
+        $value = $1;
+        # single qoute -> double qoute
+        if ($value =~ /\'/){
+            $value =~ s/\'/\"/g;
+        }
+        # double qoute -> \double qoute
+        elsif ($value =~ /\"/){
+            $value =~ s/\"/\\\"/g;
+            $value = join("","\"",$value,"\"");
+        }
+        # no qoute -> single qoute
+        else {
+            $value = join("","\'",$value,"\'");
+        }
     }
     return $value;
 }
