@@ -106,3 +106,5 @@ number=$((7 '*' $number + 3 \% $number))
 number=$((12 \* 2))
 
 number=$(($number / 2))
+
+counter=$((counter+1))
