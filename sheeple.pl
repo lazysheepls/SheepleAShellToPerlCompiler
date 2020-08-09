@@ -875,7 +875,7 @@ sub process_expr_item{
             push @results, "*";
         }
         elsif ($item =~ /\//){ # arithmetic /
-            push @results, "%";
+            push @results, "/";
         }
         elsif ($item =~ /\%/){ # arithmetic %
             push @results, "%";
