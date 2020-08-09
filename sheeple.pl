@@ -22,7 +22,7 @@ my $for_regex = qr/(?<spaces>\s*)for\s+(?<iterator>\S+)\s+in\s+(?<content>.*)/;
 my $do_regex = qr/(?<spaces>\s*)do(?!ne)(?!\S+)/;
 my $done_regex = qr/(?<spaces>\s*)done(?!\S+)/;
 
-# subset 2 regex
+# subset 2,3 regex
 my $arg_regex = qr/\$(?<arg_index>\d)/;
 my $if_regex = qr/(?<spaces>\s*)(?<!el)if\s+(?<content>.*)/;
 my $elif_regex = qr/(?<spaces>\s*)elif\s+(?<content>.*)/;
@@ -34,6 +34,13 @@ my $compare_regex = qr/(?<left>\S+)\s+(?<middle>\S+)\s+(?<right>\S+)/;
 my $file_arguement_regex = qr/(?<file_argument>-\S)\s+(?<file_name>\S+)/;
 my $expr_regex_back_qoute = qr/\`\s*expr\s+(?<content>.*)\`/;
 my $expr_regex_bracket = qr/\$\(+(?<content>[^\)]*)\)+/;
+my $expr_regex_double_bracket = qr/\$\(\((?<content>[^\)]*)\)\)/;
+
+# subset 4 regex
+my $sub_func_regex = qr/(?<spaces>\s*)(?<func_name>\S+)\(\)\s+(?<open_bracket>{)?/;
+my $sub_open_bracket = qr/(?<spaces>\s*){(?!\S+)/;
+my $sub_close_bracket = qr/(?<spaces>\s*)}(?!\S+)/;
+my $local_variables = qr/(?<spaces>\s*)local\s+(?<content>.*)/;
 
 # read shell file
 my $file_name = $ARGV[0];
@@ -156,7 +163,7 @@ sub process_system{
     while(@items){
         my $item = shift @items;
         if ($item =~ /$arg_regex/ || $item =~ /\$\#/ || $item =~ /\$\@/ || $item =~ /\$\*/){
-            $item = process_item($item);
+            $item = process_item($item,0);
         }
         push @processed_items, $item;
     }
@@ -248,7 +255,7 @@ sub process_assignment{
     }
 
     # process arguments
-    $value = process_item($value);
+    $value = process_item($value,0);
     
     print "$spaces";
     print "\$$variable";
@@ -602,16 +609,16 @@ sub process_compare{
     $right = "$+{right}";
     $middle = "$+{middle}";
 
-    print process_item($left);
+    print process_item($left,0);
     print " ";
     process_middle_comparator($middle);
-    print process_item($right);
+    print process_item($right,0);
 }
 
 # func: process the compare item on either the left or right of the comparator
 # use cases: right side of assignment, if test ..., elsif test ..., while ..., for ... #TODO:
 sub process_item{
-    my ($value) = @_;
+    my ($value,$is_arthmeric) = @_;
     # `expr <content>` -> <content>
     if ($value =~ /$expr_regex_back_qoute/ || $value =~ /$expr_regex_bracket/){
         $value = process_expr($value);
@@ -641,6 +648,11 @@ sub process_item{
     # string
     elsif($value =~ /\s*(.*)/){
         $value = $1;
+        if ($is_arthmeric){
+            $value = "\$$value";
+        } else {
+            $value = join("","\'",$value,"\'");
+        }
         # TODO:
         # # single qoute -> double qoute
         # if ($value =~ /\'/){
@@ -657,7 +669,7 @@ sub process_item{
         # }
         # # no qoute -> single qoute
         # else {
-            $value = join("","\'",$value,"\'");
+            # $value = join("","\'",$value,"\'");
         # }
     }
     return $value;
@@ -718,7 +730,7 @@ sub process_file_argument{
 
     $file_argument = "$+{file_argument}";
     $file_name = "$+{file_name}";
-    $file_name = process_item($file_name);
+    $file_name = process_item($file_name,0);
 
     print $file_argument;
     print " ";
@@ -750,6 +762,7 @@ sub process_expr{
     my ($line) = @_;
     my $content = "";
     my @results = ();
+    my $is_arthmeric = 0;
     return undef unless ($line =~ /$expr_regex_back_qoute/ || $line =~ /$expr_regex_bracket/);
 
     if ($line =~ /$expr_regex_back_qoute/){
@@ -757,6 +770,9 @@ sub process_expr{
     }
     elsif ($line =~ /$expr_regex_bracket/){
         $content = "$+{content}";
+        if ($line =~ /$expr_regex_double_bracket/){
+            $is_arthmeric = 1;
+        }
     }
     
     # 3 types of expr
@@ -777,7 +793,7 @@ sub process_expr{
 
     while(@groups){
         my $group = shift @groups;
-        push @results, process_expr_item($group);
+        push @results, process_expr_item($group,$is_arthmeric);
 
         # print logic operators
         if (@logic_operators){
@@ -801,8 +817,9 @@ sub process_expr{
 #       ARG1 >= ARG2
 #       ARG1 + ARG2
 #       7 '*' $number + 3
+# Note: $((number + 1)) -> $number + 1
 sub process_expr_item{
-    my ($content) = @_;
+    my ($content, $is_arthmeric) = @_;
     my @items = ();
     my @results = ();
     @items = split /\s+/, $content; # split equation into items 
@@ -850,7 +867,7 @@ sub process_expr_item{
             push @results, "length";
         }
         else{
-            push @results, process_item($item);
+            push @results, process_item($item,$is_arthmeric);
         }
     }
 
