@@ -12,8 +12,7 @@ my $fullline_comment_regex = qr/^(?<comment>\s*#.*)$/;
 
 # subset 0 regex
 my $echo_regex = qr/(?<spaces>\s*)echo\s+(?<content>.*)/;
-my $assign_regex = qr/(?<spaces>\s*)(?<variable>\S+)=(?<value>\S+)/;
-
+my $assign_regex = qr/(?<spaces>\s*)(?<variable>[^=]+)=(?<value>.+)/;
 # subset 1 regex
 my $cd_regex = qr/(?<spaces>\s*)cd\s+(?<content>.*)/;
 my $exit_regex = qr/(?<spaces>\s*)exit\s+(?<exit_number>\d+)?/;
@@ -32,6 +31,8 @@ my $fi_regex = qr/(?<spaces>\s*)fi/;
 my $while_regex = qr/(?<spaces>\s*)while\s+(?<content>.*)/;
 my $compare_regex = qr/(?<left>\S+)\s+(?<middle>\S+)\s+(?<right>\S+)/;
 my $file_arguement_regex = qr/(?<file_argument>-\S)\s+(?<file_name>\S+)/;
+my $expr_regex_back_qoute = qr/\`\s*expr\s+(?<content>.*)\`/;
+my $expr_regex_bracket = qr/\$\(+(?<content>[^\)]*)\)+/;
 
 # read shell file
 my $file_name = $ARGV[0];
@@ -205,9 +206,10 @@ sub process_assignment{
     $value = "$+{value}";
 
     # process in-line comment
-    if ($line =~ /$inline_comment_regex/){
+    if ($value =~ /$inline_comment_regex/){
         my %match_result = ();
-        %match_result = process_inline_comment($line);
+        %match_result = process_inline_comment($value);
+        $value = $match_result{"content"};
         $comment = $match_result{"comment"};
     }
 
@@ -491,6 +493,7 @@ sub process_if{
     }
 }
 
+# func: process test in if/elif/while
 sub process_test{
     my ($line) = @_;
     my $content = "";
@@ -575,8 +578,12 @@ sub process_compare{
 # use cases: right side of assignment, if test ..., elsif test ..., while ..., for ... #TODO:
 sub process_item{
     my ($value) = @_;
+    # `expr <content>` -> <content>
+    if ($value =~ /$expr_regex_back_qoute/ || $value =~ /$expr_regex_bracket/){
+        $value = process_expr($value);
+    }
     # $1(arguement) -> $ARGV[0]
-    if ($value =~ /$arg_regex/g){
+    elsif ($value =~ /$arg_regex/g){
         $value = arg_to_ARGV($value);
     } 
     # $#(number of arguments) -> @ARGV
@@ -687,6 +694,119 @@ sub process_then{
     print "\n";
 }
 
+sub process_expr{
+    my ($line) = @_;
+    my $content = "";
+    my @results = ();
+    return undef unless ($line =~ /$expr_regex_back_qoute/ || $line =~ /$expr_regex_bracket/);
+
+    if ($line =~ /$expr_regex_back_qoute/){
+        $content = "$+{content}";
+    }
+    elsif ($line =~ /$expr_regex_bracket/){
+        $content = "$+{content}";
+    }
+    
+    # 3 types of expr
+    # logical operators (|,&)
+    # argument  comparison (<.<=,>,>=,!=,=)
+    # arithmetic sign (+.-.*,/,%)
+
+    # split content into groups by logic operations (|, &)
+    # possible variations \|, '|', \&, '&'
+	my @groups = ();
+	@groups = split(/\S*\|\S*|\S*\&\S*/, $content);
+
+    # find logic operators
+	my @logic_operators = ();
+	while($content =~ /\S*(\||\&)\S*/g){
+        push @logic_operators, $1;
+	}
+
+    while(@groups){
+        my $group = shift @groups;
+        push @results, process_expr_item($group);
+
+        # print logic operators
+        if (@logic_operators){
+            my $logic_operator = shift @logic_operators;
+            if ($logic_operator =~ /\|/){
+                push @results, " && ";
+	            # print " && ";
+	        }
+	        elsif ($logic_operator =~ /\&/){
+                push @results, " || ";
+	            # print " || ";
+	        }
+        }
+    }
+    
+    return join("",@results);
+}
+
+# func: process expr format that is a x b
+# e.g   ARG1 < ARG2
+#       ARG1 >= ARG2
+#       ARG1 + ARG2
+#       7 '*' $number + 3
+sub process_expr_item{
+    my ($content) = @_;
+    my @items = ();
+    my @results = ();
+    @items = split /\s+/, $content; # split equation into items 
+    @items = grep /\S/, @items; # remove empty strings;
+
+    # check if it is string or numeric comparison
+    my $is_numeric = 0; #TODO: string compare or numeric compare (< or lt)
+
+    while(@items){
+        my $item = shift @items;
+        if ($item =~ /<(?<!=)/){ # <
+            push @results, "<";
+        } 
+        elsif ($item =~ /<=/){ # <=
+            push @results, "<=";
+        }
+        elsif ($item =~ />(?<!=)/){ # >
+            push @results, ">";
+        }
+        elsif ($item =~ />=/){ # >=
+            push @results, ">=";
+        }
+        elsif ($item =~ /\!=/){ # !=
+            push @results, "!=";
+        }
+        elsif ($item =~ /\=/){ # =
+            push @results, "==";
+        }
+        elsif ($item =~ /\+/){ # arithmetic +
+            push @results, "+";
+        }
+        elsif ($item =~ /\-/){ # arithmetic -
+            push @results, "-";
+        }
+        elsif ($item =~ /\*/ && $item !~ /\$\*/){ # arithmetic *
+            push @results, "*";
+        }
+        elsif ($item =~ /\//){ # arithmetic /
+            push @results, "%";
+        }
+        elsif ($item =~ /\%/){ # arithmetic %
+            push @results, "%";
+        }
+        elsif ($item =~ /length/){
+            push @results, "length";
+        }
+        else{
+            push @results, process_item($item);
+        }
+    }
+
+    my $result_str = join(" ", @results);    
+    return $result_str;
+}
+
+# func: process elif (...)
 sub process_elif{
     my ($line) = @_;
     my $spaces = "";
@@ -723,6 +843,7 @@ sub process_elif{
     }
 }
 
+# func: process else 
 sub process_else{
     my ($line) = @_;
     my $spaces = "";
@@ -744,6 +865,7 @@ sub process_else{
     print "\n";
 }
 
+# func: process fi
 sub process_fi{
     my ($line) = @_;
     my $spaces = "";
@@ -765,8 +887,42 @@ sub process_fi{
     print "\n";
 }
 
+# func: process while statement
+# e.g while test andrew = great
+#     while [ -d /dev/null ]
 sub process_while{
     my ($line) = @_;
-    #TODO:
+    my $spaces = "";
+    my $content = "";
+    my $comment = "";
+    return undef unless ($line =~ /$while_regex/);
+
+    $spaces = "$+{spaces}";
+    $content = "$+{content}";
+
+    # process in-line comment
+    if ($content =~ /$inline_comment_regex/){
+        my %match_result = ();
+        %match_result = process_inline_comment($content);
+        $content = $match_result{"content"};
+        $comment = $match_result{"comment"};
+    }
+
+    print "$spaces";
+    print "while (";
+
+    # process test or [...]
+    if ($content =~ /\[.*\]/ || $content =~ /test/){
+        process_test($content);
+    } else {
+        process_system($content);
+    }
+    
+    print ") ";
+
+    # print comment if there is any
+    if($comment ne ""){
+        print $comment,"\n";
+    }
 }
 
