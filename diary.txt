@@ -1,0 +1,38 @@
+Date    Start	    Stop	        Activity	            Comments
+1/8/20  20:21pm     22:10pm         create test cases       - read assignment spec
+                                                            - create test cases for subset 0 and 1
+
+2/8/20  07:34am     12:30pm         coding and testing      - add code for echo
+                                                            - add code for inline comment handling
+                                                            - add code for full line comment handling
+                                                            - added for test cases for subset 0 and 1
+                                                            - created auto test script
+
+2/8/20  13:06am     16:37pm         coding                  - add code for variable assignment   
+                                                            - add code for cd command   
+                                                            - add code for system command
+                                                                                    
+2/8/20  09:06pm     01:13am(+1)     coding                  - add basic statement handling 
+                                                            - add code for read command
+                                                            - fixed some comment    
+                                                 
+6/8/20  21:06pm     23:20am         coding and debugging    - add code for exit command with inline comment
+                                                            - fixed space capture issue with inline comment
+                                                            - add inline and fullline comment test cases
+                                                            - add code to handle input arguements
+
+7/8/20  00:16am     01:16am         coding and debugging    - fixed argumements in echo command
+                                                            - add regex pattern for if,elif,else,while
+
+9/8/20  00:09am     01:20am         coding and debugging    - fixed a bug where negative number is not handled
+                                                            - add code for handling elif, else and fi 
+
+9/8/20  13:45pm     17:13pm         coding and debugging    - add code for basic expr statement   
+                                                            - add code for single and double qoutation
+                                                            - fixed an issue where assignment regex is conflicting with if,elif regex pattern
+                                                            - add code to handle arguements in system command
+
+9/8/20  17:43pm     19:10pm         coding and debugging    - add code for echo -n option
+                                                            - fixed a bug where variable is wronly handled in the arithmetic operation
+                                                            - add basic support to sub functions
+                                                            - add basic support to local variables                                                                                             
